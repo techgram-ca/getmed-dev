@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -18,14 +18,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'You must accept the terms and conditions' }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const adminClient = await createAdminClient();
+  const adminClient = createAdminClient();
 
-  // Create auth user
-  const { data: authData, error: authError } = await supabase.auth.signUp({
+  // Use admin.createUser instead of signUp — creates the auth user WITHOUT
+  // starting a session, so no session cookies are set in the response.
+  // signUp would auto-sign-in the pharmacy and set cookies that could
+  // conflict with an existing admin session in the same browser.
+  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
     email,
     password,
-    options: { data: { role: 'pharmacy', pharmacy_name: name } },
+    user_metadata: { role: 'pharmacy', pharmacy_name: name },
+    email_confirm: true,
   });
 
   if (authError || !authData.user) {
