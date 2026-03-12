@@ -23,7 +23,7 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refresh auth session
+  // Refresh the Supabase Auth session on every request so cookies stay fresh
   await supabase.auth.getUser();
 
   return supabaseResponse;
