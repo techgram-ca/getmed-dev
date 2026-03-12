@@ -26,7 +26,7 @@ async function uploadFile(
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
   const formData = await request.formData();
 
   const orderType = formData.get('order_type') as string;

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const adminClient = await createAdminClient();
+  const adminClient = createAdminClient();
 
   // Verify pharmacy owns the order that contains this image
   const { data: pharmacy } = await adminClient

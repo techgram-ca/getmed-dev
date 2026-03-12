@@ -23,7 +23,7 @@ export async function PATCH(
   }
 
   // Verify the order belongs to this pharmacy
-  const adminClient = await createAdminClient();
+  const adminClient = createAdminClient();
   const { data: pharmacy } = await adminClient
     .from('pharmacies')
     .select('id')

@@ -6,7 +6,7 @@ export async function GET() {
   const { error } = await requireAdmin();
   if (error) return error;
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
   const { data, error: dbError } = await supabase
     .from('platform_settings')
     .select('*')
@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Missing key or value' }, { status: 400 });
   }
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
   const { data, error: dbError } = await supabase
     .from('platform_settings')
     .update({ value: String(value), updated_at: new Date().toISOString() })

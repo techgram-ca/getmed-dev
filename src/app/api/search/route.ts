@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
   }
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
 
   // Get search radius from settings
   const { data: setting } = await supabase

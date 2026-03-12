@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const city = searchParams.get('city');
   const date = searchParams.get('date');
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from('orders')

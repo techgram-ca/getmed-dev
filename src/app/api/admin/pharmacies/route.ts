@@ -6,7 +6,7 @@ export async function GET() {
   const { error } = await requireAdmin();
   if (error) return error;
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
   const { data: pharmacies, error: dbError } = await supabase
     .from('pharmacies')
     .select('*')
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
   const { data, error: dbError } = await supabase
     .from('pharmacies')
     .update({ status: statusMap[action] })
@@ -54,7 +54,7 @@ export async function DELETE(request: NextRequest) {
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
   const { error: dbError } = await supabase
     .from('pharmacies')
     .update({ deleted_at: new Date().toISOString() })
