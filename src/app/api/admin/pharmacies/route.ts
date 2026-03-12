@@ -34,6 +34,18 @@ export async function PATCH(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // Fetch the pharmacy first so we have user_id for auth operations
+  const { data: existing, error: fetchError } = await supabase
+    .from('pharmacies')
+    .select('user_id')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !existing) {
+    return NextResponse.json({ error: 'Pharmacy not found' }, { status: 404 });
+  }
+
   const { data, error: dbError } = await supabase
     .from('pharmacies')
     .update({ status: statusMap[action] })
@@ -42,6 +54,13 @@ export async function PATCH(request: NextRequest) {
     .single();
 
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+
+  // When approving, confirm the auth user's email so they can sign in immediately
+  // (handles pharmacies registered before email_confirm was set, or Supabase
+  //  projects with email confirmation enabled)
+  if (action === 'approve') {
+    await supabase.auth.admin.updateUserById(existing.user_id, { email_confirm: true });
+  }
 
   return NextResponse.json({ pharmacy: data });
 }
