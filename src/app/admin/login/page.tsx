@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
 import { ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,14 +18,32 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      // Validate admin email client-side before attempting sign-in
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+      if (adminEmail && email !== adminEmail) {
+        throw new Error('Invalid admin credentials');
+      }
+
+      // Sign in directly with the browser client so the session is stored
+      // in a way both createBrowserClient and createServerClient can read
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      // Server-side double-check via API (sets nothing — just validates)
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password: '__skip__', userId: data.user?.id }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (!res.ok) {
+        await supabase.auth.signOut();
+        const d = await res.json();
+        throw new Error(d.error || 'Access denied');
+      }
+
       router.push('/admin');
+      router.refresh();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Login failed');
     } finally {

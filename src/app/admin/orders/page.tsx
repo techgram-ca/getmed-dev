@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '@/lib/utils';
@@ -23,6 +24,7 @@ interface AdminOrder {
 interface PharmacyOption { id: string; name: string; }
 
 export default function AdminOrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [pharmacies, setPharmacies] = useState<PharmacyOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,10 @@ export default function AdminOrdersPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/orders?${buildQuery()}`);
+      if (res.status === 401 || res.status === 403) {
+        router.push('/admin/login');
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setOrders(data.orders || []);
@@ -54,7 +60,7 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [buildQuery]);
+  }, [buildQuery, router]);
 
   useEffect(() => {
     const loadPharmacies = async () => {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Building2, ClipboardList, Clock, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -28,6 +29,7 @@ function StatCard({ label, value, icon, href, color }: {
 }
 
 export default function AdminOverview() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats>({ totalPharmacies: 0, pendingPharmacies: 0, totalOrders: 0, pendingOrders: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,12 @@ export default function AdminOverview() {
           fetch('/api/admin/pharmacies'),
           fetch('/api/admin/orders'),
         ]);
+
+        if (pharRes.status === 401 || pharRes.status === 403) {
+          router.push('/admin/login');
+          return;
+        }
+
         const [pharData, ordData] = await Promise.all([pharRes.json(), ordRes.json()]);
         const pharmacies = pharData.pharmacies || [];
         const orders = ordData.orders || [];
@@ -52,7 +60,7 @@ export default function AdminOverview() {
       }
     };
     load();
-  }, []);
+  }, [router]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
@@ -65,9 +73,9 @@ export default function AdminOverview() {
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Dashboard Overview</h1>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard label="Total Pharmacies" value={stats.totalPharmacies} href="/admin/pharmacies" color="bg-blue-50" icon={<Building2 size={22} className="text-blue-600" />} />
-        <StatCard label="Pending Approval" value={stats.pendingPharmacies} href="/admin/pharmacies?status=pending" color="bg-yellow-50" icon={<Clock size={22} className="text-yellow-600" />} />
+        <StatCard label="Pending Approval" value={stats.pendingPharmacies} href="/admin/pharmacies" color="bg-yellow-50" icon={<Clock size={22} className="text-yellow-600" />} />
         <StatCard label="Total Orders" value={stats.totalOrders} href="/admin/orders" color="bg-purple-50" icon={<ClipboardList size={22} className="text-purple-600" />} />
-        <StatCard label="Pending Orders" value={stats.pendingOrders} href="/admin/orders?status=pending" color="bg-green-50" icon={<CheckCircle size={22} className="text-green-600" />} />
+        <StatCard label="Pending Orders" value={stats.pendingOrders} href="/admin/orders" color="bg-green-50" icon={<CheckCircle size={22} className="text-green-600" />} />
       </div>
     </div>
   );

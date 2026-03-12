@@ -1,29 +1,43 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Pharmacy } from '@/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { PHARMACY_STATUS_COLORS } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CheckCircle, XCircle, Trash2, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminPharmaciesPage() {
+  const router = useRouter();
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [filter, setFilter] = useState('all');
   const [actionId, setActionId] = useState<string | null>(null);
 
-  const fetchPharmacies = async () => {
+  const fetchPharmacies = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/admin/pharmacies');
-    const data = await res.json();
-    setPharmacies(data.pharmacies || []);
-    setLoading(false);
-  };
+    setFetchError('');
+    try {
+      const res = await fetch('/api/admin/pharmacies');
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        router.push('/admin/login');
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || 'Failed to load pharmacies');
+      setPharmacies(data.pharmacies || []);
+    } catch (err: unknown) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load pharmacies');
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
-  useEffect(() => { fetchPharmacies(); }, []);
+  useEffect(() => { fetchPharmacies(); }, [fetchPharmacies]);
 
   const performAction = async (id: string, action: string) => {
     setActionId(id);
@@ -40,7 +54,7 @@ export default function AdminPharmaciesPage() {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Pharmacy ${action}d`);
+      toast.success(`Pharmacy ${action === 'delete' ? 'removed' : action + 'd'}`);
       fetchPharmacies();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Action failed');
@@ -66,7 +80,7 @@ export default function AdminPharmaciesPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         {['all', 'pending', 'approved', 'rejected', 'suspended', 'deleted'].map((s) => (
           <button
             key={s}
@@ -76,6 +90,11 @@ export default function AdminPharmaciesPage() {
             }`}
           >
             {s}
+            {s === 'pending' && (
+              <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {pharmacies.filter((p) => p.status === 'pending' && !p.deleted_at).length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -84,12 +103,24 @@ export default function AdminPharmaciesPage() {
         <div className="flex justify-center py-20">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : fetchError ? (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-center gap-3 text-red-700">
+          <AlertCircle size={20} className="shrink-0" />
+          <div>
+            <p className="font-medium">Failed to load pharmacies</p>
+            <p className="text-sm text-red-600 mt-0.5">{fetchError}</p>
+          </div>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={fetchPharmacies}>Retry</Button>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-16 text-center text-gray-500">
-          No pharmacies found
+          {filter === 'pending' ? 'No pharmacies pending approval' : 'No pharmacies found'}
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 text-sm text-gray-500">
+            {filtered.length} pharmacie{filtered.length !== 1 ? 's' : ''}
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -103,7 +134,7 @@ export default function AdminPharmaciesPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${p.status === 'pending' ? 'bg-yellow-50/40' : ''}`}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-900">{p.name}</p>
                     <p className="text-xs text-gray-400">{p.email}</p>

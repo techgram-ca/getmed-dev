@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Admin login validation endpoint.
+ * Auth itself is handled client-side via createBrowserClient so the session
+ * is stored where both browser and server Supabase clients can read it.
+ * This route only validates that the attempted email matches ADMIN_EMAIL.
+ */
 export async function POST(request: NextRequest) {
-  const { email, password } = await request.json();
+  const { email } = await request.json();
 
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail || email !== adminEmail) {
-    return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 401 });
-
-  return NextResponse.json({ user: data.user });
+  return NextResponse.json({ ok: true });
 }
