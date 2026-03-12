@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AddressAutocompleteProps {
   onSelect: (place: { address: string; latitude: number; longitude: number }) => void;
+  onClear?: () => void;
   placeholder?: string;
   className?: string;
   defaultValue?: string;
@@ -18,9 +19,32 @@ declare global {
   }
 }
 
+// Ontario, Canada bounding box — biases autocomplete results toward the province
+const ONTARIO_BOUNDS = {
+  north: 56.931393,
+  south: 41.676556,
+  east: -74.320576,
+  west: -95.156227,
+};
+
+function isOntario(components: google.maps.GeocoderAddressComponent[]): boolean {
+  return components.some(
+    (c) =>
+      c.types.includes('administrative_area_level_1') &&
+      (c.short_name === 'ON' || c.long_name === 'Ontario')
+  );
+}
+
+function isCanada(components: google.maps.GeocoderAddressComponent[]): boolean {
+  return components.some(
+    (c) => c.types.includes('country') && c.short_name === 'CA'
+  );
+}
+
 export default function AddressAutocomplete({
   onSelect,
-  placeholder = 'Enter your address…',
+  onClear,
+  placeholder = 'Enter your Ontario address…',
   className,
   defaultValue = '',
 }: AddressAutocompleteProps) {
@@ -28,7 +52,9 @@ export default function AddressAutocomplete({
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [value, setValue] = useState(defaultValue);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState('');
 
+  // Load Google Maps script once
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -60,18 +86,48 @@ export default function AddressAutocomplete({
     document.head.appendChild(script);
   }, []);
 
+  // Attach autocomplete once Maps is loaded
   useEffect(() => {
     if (!loaded || !inputRef.current) return;
 
+    const bounds = new google.maps.LatLngBounds(
+      { lat: ONTARIO_BOUNDS.south, lng: ONTARIO_BOUNDS.west },
+      { lat: ONTARIO_BOUNDS.north, lng: ONTARIO_BOUNDS.east }
+    );
+
     autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
       types: ['address'],
+      // Restrict results to Canada only at the API level
       componentRestrictions: { country: 'ca' },
-      fields: ['formatted_address', 'geometry'],
+      // Bias the dropdown ranking toward Ontario addresses
+      bounds,
+      strictBounds: false,
+      fields: ['formatted_address', 'geometry', 'address_components'],
     });
 
     autocompleteRef.current.addListener('place_changed', () => {
       const place = autocompleteRef.current?.getPlace();
-      if (!place?.geometry?.location) return;
+      if (!place?.geometry?.location || !place.address_components) return;
+
+      const components = place.address_components;
+
+      // Double-check it's in Canada (API restriction covers this, but be safe)
+      if (!isCanada(components)) {
+        setValue('');
+        setError('Only Canadian addresses are supported.');
+        onClear?.();
+        return;
+      }
+
+      // Enforce Ontario-only
+      if (!isOntario(components)) {
+        setValue('');
+        setError('GetMed is currently available in Ontario, Canada only.');
+        onClear?.();
+        return;
+      }
+
+      setError('');
       const address = place.formatted_address || '';
       setValue(address);
       onSelect({
@@ -86,28 +142,46 @@ export default function AddressAutocomplete({
         google.maps.event.clearInstanceListeners(autocompleteRef.current);
       }
     };
-  }, [loaded, onSelect]);
+  }, [loaded, onSelect, onClear]);
 
   return (
-    <div className="relative">
-      <MapPin
-        size={18}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-      />
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
-        className={cn(
-          'w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-          'text-base shadow-sm',
-          className
-        )}
-        autoComplete="off"
-      />
+    <div className="flex flex-col gap-1.5">
+      <div className="relative">
+        <MapPin
+          size={18}
+          className={cn(
+            'absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none',
+            error ? 'text-red-400' : 'text-gray-400'
+          )}
+        />
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (error) setError('');
+          }}
+          placeholder={placeholder}
+          className={cn(
+            'w-full pl-10 pr-4 py-3 rounded-lg border bg-white text-gray-900',
+            'focus:outline-none focus:ring-2 focus:border-transparent',
+            'text-base shadow-sm',
+            error
+              ? 'border-red-400 bg-red-50 focus:ring-red-400'
+              : 'border-gray-300 focus:ring-blue-500',
+            className
+          )}
+          autoComplete="off"
+        />
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-1.5 text-xs text-red-600">
+          <AlertCircle size={13} className="shrink-0" />
+          {error}
+        </div>
+      )}
     </div>
   );
 }

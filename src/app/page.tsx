@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressAutocomplete from '@/components/map/AddressAutocomplete';
 import Button from '@/components/ui/Button';
-import { Search, ShieldCheck, Clock, Truck } from 'lucide-react';
+import { Search, ShieldCheck, Clock, Truck, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function HomePage() {
@@ -14,7 +14,7 @@ export default function HomePage() {
 
   const handleSearch = () => {
     if (!location) {
-      toast.error('Please select an address from the suggestions');
+      toast.error('Please select an Ontario address from the suggestions');
       return;
     }
     setSearching(true);
@@ -30,7 +30,7 @@ export default function HomePage() {
     {
       icon: <Search size={28} className="text-blue-500" />,
       title: 'Find Nearby Pharmacies',
-      desc: 'Search pharmacies within your area and compare options.',
+      desc: 'Search approved pharmacies within your area of Ontario and compare options.',
     },
     {
       icon: <ShieldCheck size={28} className="text-green-500" />,
@@ -51,23 +51,39 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col">
+      {/* Ontario-only notice banner */}
+      <div className="bg-blue-50 border-b border-blue-100 py-2 px-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-center gap-2 text-sm text-blue-700">
+          <MapPin size={14} className="shrink-0" />
+          <span>GetMed is currently available in <strong>Ontario, Canada</strong> only.</span>
+        </div>
+      </div>
+
       {/* Hero */}
       <section className="relative bg-gradient-to-br from-blue-600 to-blue-800 text-white">
         <div className="relative max-w-4xl mx-auto px-4 py-24 sm:py-32 text-center">
+          <div className="inline-flex items-center gap-1.5 bg-white/15 text-white text-xs font-medium px-3 py-1.5 rounded-full mb-6">
+            <MapPin size={12} />
+            Serving Ontario, Canada
+          </div>
           <h1 className="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
             Prescription Delivery,<br />
             <span className="text-blue-200">Right to Your Door</span>
           </h1>
           <p className="text-lg text-blue-100 mb-10 max-w-2xl mx-auto">
-            Enter your address to find approved pharmacies near you and get your medications delivered without leaving home.
+            Enter your Ontario address to find approved pharmacies near you and get your medications delivered without leaving home.
           </p>
 
           {/* Search Box */}
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl mx-auto">
-            <p className="text-gray-700 font-medium mb-3 text-left">Your delivery address</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-gray-700 font-medium text-left">Your delivery address</p>
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Ontario, CA only</span>
+            </div>
             <AddressAutocomplete
               onSelect={setLocation}
-              placeholder="Start typing your address…"
+              onClear={() => setLocation(null)}
+              placeholder="Start typing your Ontario address…"
             />
             <Button
               size="lg"
@@ -85,11 +101,11 @@ export default function HomePage() {
       {/* How it works */}
       <section className="max-w-6xl mx-auto px-4 py-20">
         <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">How GetMed Works</h2>
-        <p className="text-center text-gray-500 mb-12">Simple, fast, and secure prescription delivery in 4 easy steps.</p>
+        <p className="text-center text-gray-500 mb-12">Simple, fast, and secure prescription delivery in Ontario — 4 easy steps.</p>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {[
-            { step: '1', title: 'Enter Address', desc: 'Type your delivery address to discover nearby pharmacies.' },
+            { step: '1', title: 'Enter Address', desc: 'Type your Ontario delivery address to discover nearby pharmacies.' },
             { step: '2', title: 'Choose Pharmacy', desc: 'Browse pharmacies by distance, rating, and payment options.' },
             { step: '3', title: 'Upload Prescription', desc: 'Fill in your details and upload your prescription securely.' },
             { step: '4', title: 'Receive Delivery', desc: 'The pharmacy verifies and delivers your medication next day.' },
@@ -124,9 +140,9 @@ export default function HomePage() {
       {/* CTA for pharmacies */}
       <section className="bg-blue-50 border-t border-blue-100">
         <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Are you a pharmacy?</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Are you an Ontario pharmacy?</h2>
           <p className="text-gray-600 mb-6">
-            Join GetMed to receive prescription orders from patients in your area and grow your business.
+            Join GetMed to receive prescription orders from patients in your area of Ontario and grow your business.
           </p>
           <a
             href="/pharmacy/register"

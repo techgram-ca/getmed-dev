@@ -122,7 +122,7 @@ export default function PharmacyRegisterPage() {
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Register Your Pharmacy</h1>
-        <p className="text-gray-500 mt-1">Join GetMed to receive prescription orders from nearby patients.</p>
+        <p className="text-gray-500 mt-1">Join GetMed to receive prescription orders from nearby patients in Ontario, Canada.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -171,7 +171,12 @@ export default function PharmacyRegisterPage() {
                 setLongitude(place.longitude);
                 setErrors((e) => ({ ...e, address: '' }));
               }}
-              placeholder="Search your pharmacy address…"
+              onClear={() => {
+                setAddress('');
+                setLatitude(null);
+                setLongitude(null);
+              }}
+              placeholder="Search your Ontario pharmacy address…"
             />
             {errors.address && <p className="text-xs text-red-600">{errors.address}</p>}
           </div>
