@@ -169,7 +169,7 @@ export default function AddressAutocomplete({
             'text-base shadow-sm',
             error
               ? 'border-red-400 bg-red-50 focus:ring-red-400'
-              : 'border-gray-300 focus:ring-blue-500',
+              : 'border-gray-300 focus:ring-teal-500',
             className
           )}
           autoComplete="off"

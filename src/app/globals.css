@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9fafb;
+  --background: #F2F7F6;
   --foreground: #111827;
 }
 
@@ -35,7 +35,7 @@ html {
   cursor: pointer;
 }
 .pac-item:hover, .pac-item-selected {
-  background-color: #eff6ff;
+  background-color: #f0fdfa;
 }
 .pac-icon {
   display: none;
