@@ -32,11 +32,11 @@ export default function PharmacyLoginPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 px-4 py-12">
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-100 rounded-2xl mb-4">
-            <Pill size={28} className="text-blue-600" />
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-teal-100 rounded-2xl mb-4">
+            <Pill size={28} className="text-teal-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Pharmacy Login</h1>
           <p className="text-gray-500 mt-1">Sign in to manage your orders</p>
@@ -67,7 +67,7 @@ export default function PharmacyLoginPage() {
 
           <div className="mt-6 text-center text-sm text-gray-500">
             Not registered yet?{' '}
-            <a href="/pharmacy/register" className="text-blue-600 hover:underline font-medium">
+            <a href="/pharmacy/register" className="text-teal-600 hover:underline font-medium">
               Register your pharmacy
             </a>
           </div>

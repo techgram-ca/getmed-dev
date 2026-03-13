@@ -43,7 +43,7 @@ function FileUploadField({
       ) : (
         <label
           htmlFor={id}
-          className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+          className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 hover:bg-teal-50 transition-colors"
         >
           <Upload size={24} className="text-gray-400" />
           <span className="text-sm text-gray-500">Click to upload image (JPG, PNG, WEBP)</span>
@@ -157,7 +157,7 @@ function OrderPageContent() {
         <Button variant="ghost" size="sm" onClick={() => router.back()}>← Back</Button>
         <h1 className="text-2xl font-bold text-gray-900 mt-3">Place Your Order</h1>
         <p className="text-gray-500 mt-1">
-          Ordering from <span className="font-semibold text-blue-600">{pharmacyName}</span>
+          Ordering from <span className="font-semibold text-teal-600">{pharmacyName}</span>
         </p>
         <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
           <span>Delivery to: {deliveryAddress}</span>
@@ -177,7 +177,7 @@ function OrderPageContent() {
                 className={cn(
                   'flex flex-col items-center text-center p-4 rounded-lg border-2 transition-all',
                   orderType === value
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    ? 'border-teal-500 bg-teal-50 text-teal-700'
                     : 'border-gray-200 text-gray-600 hover:border-gray-300'
                 )}
               >
@@ -243,7 +243,7 @@ function OrderPageContent() {
                 placeholder="e.g. Tylenol 500mg, Advil 200mg, Claritin 10mg"
                 className={cn(
                   'w-full rounded-lg border px-3 py-2 text-sm text-gray-900',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500',
+                  'focus:outline-none focus:ring-2 focus:ring-teal-500',
                   errors.otc_medications ? 'border-red-400 bg-red-50' : 'border-gray-300'
                 )}
               />
@@ -306,7 +306,7 @@ function OrderPageContent() {
                 placeholder="List the medications or provide prescription details to transfer"
                 className={cn(
                   'w-full rounded-lg border px-3 py-2 text-sm text-gray-900',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500',
+                  'focus:outline-none focus:ring-2 focus:ring-teal-500',
                   errors.transfer_medication_details ? 'border-red-400 bg-red-50' : 'border-gray-300'
                 )}
               />
@@ -354,7 +354,7 @@ function OrderPageContent() {
 
 export default function OrderPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" /></div>}>
       <OrderPageContent />
     </Suspense>
   );

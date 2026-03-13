@@ -21,14 +21,14 @@ export default function PharmacyCard({ pharmacy, selected, onSelect, onCardClick
       onClick={onCardClick}
       className={cn(
         'bg-white rounded-xl border-2 p-5 cursor-pointer transition-all hover:shadow-md',
-        selected ? 'border-blue-500 shadow-blue-100 shadow-md' : 'border-gray-100'
+        selected ? 'border-teal-500 shadow-teal-100 shadow-md' : 'border-gray-100'
       )}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="font-semibold text-gray-900 text-base leading-tight">{pharmacy.name}</h3>
           {pharmacy.distance !== undefined && (
-            <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1 inline-block">
+            <span className="text-xs font-medium text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full mt-1 inline-block">
               {formatDistance(pharmacy.distance)} away
             </span>
           )}
@@ -43,7 +43,7 @@ export default function PharmacyCard({ pharmacy, selected, onSelect, onCardClick
         </div>
         <div className="flex items-center gap-2">
           <Phone size={14} className="text-gray-400" />
-          <a href={`tel:${pharmacy.phone}`} className="hover:text-blue-600" onClick={e => e.stopPropagation()}>
+          <a href={`tel:${pharmacy.phone}`} className="hover:text-teal-600" onClick={e => e.stopPropagation()}>
             {pharmacy.phone}
           </a>
         </div>

@@ -72,7 +72,7 @@ function SearchPageContent() {
           ← Back
         </Button>
         <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
-          <MapPin size={14} className="text-blue-500 shrink-0" />
+          <MapPin size={14} className="text-teal-500 shrink-0" />
           <span className="truncate">{address}</span>
         </div>
         <span className="text-xs text-gray-400 ml-auto shrink-0">Within {radiusKm} km</span>
@@ -81,7 +81,7 @@ function SearchPageContent() {
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-500">Finding nearby pharmacies…</p>
           </div>
         </div>
@@ -160,7 +160,7 @@ export default function SearchPage() {
   return (
     <Suspense fallback={
       <div className="flex-1 flex items-center justify-center h-screen">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <SearchPageContent />
