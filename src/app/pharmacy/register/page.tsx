@@ -33,6 +33,7 @@ export default function PharmacyRegisterPage() {
   const [hours, setHours] = useState(
     Object.fromEntries(DAYS_OF_WEEK.map((d) => [d, { ...DEFAULT_HOURS }]))
   );
+  const [services, setServices] = useState({ portal_onboarding: true, prescription_delivery: true });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +91,7 @@ export default function PharmacyRegisterPage() {
           longitude,
           opening_hours: hours,
           accepted_payment_methods: paymentMethods,
+          services,
           terms_accepted: termsAccepted,
         }),
       });
@@ -154,6 +156,38 @@ export default function PharmacyRegisterPage() {
               onChange={(e) => update('emergency_contact', e.target.value)}
               placeholder="Optional"
             />
+          </div>
+        </div>
+
+        {/* Services */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="font-semibold text-gray-900 mb-1">Services</h2>
+          <p className="text-sm text-gray-500 mb-4">Select the GetMed services your pharmacy is signing up for.</p>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={services.portal_onboarding}
+                onChange={(e) => setServices((s) => ({ ...s, portal_onboarding: e.target.checked }))}
+                className="mt-0.5 rounded accent-teal-500"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900 group-hover:text-teal-700 transition-colors">GetMed Portal Onboarding</p>
+                <p className="text-xs text-gray-500 mt-0.5">Access the pharmacy dashboard to manage your profile, orders, and analytics.</p>
+              </div>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={services.prescription_delivery}
+                onChange={(e) => setServices((s) => ({ ...s, prescription_delivery: e.target.checked }))}
+                className="mt-0.5 rounded accent-teal-500"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900 group-hover:text-teal-700 transition-colors">Prescription Delivery</p>
+                <p className="text-xs text-gray-500 mt-0.5">Receive and fulfill prescription delivery orders from nearby patients.</p>
+              </div>
+            </label>
           </div>
         </div>
 
