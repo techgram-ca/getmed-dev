@@ -6,11 +6,12 @@ import { createClient } from '@/lib/supabase/client';
 import { Driver, Order } from '@/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS, DELIVERY_FAILURE_REASONS, cn } from '@/lib/utils';
 import {
   MapPin, Phone, Package, CheckCircle, XCircle, Navigation,
   LogOut, Truck, Camera, FileSignature, RefreshCw, ShoppingBag,
-  History, Calendar, ChevronDown,
+  History, Calendar, ChevronDown, User,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -25,6 +26,7 @@ interface PharmacyGroup {
 
 type ModalMode = 'deliver' | 'fail' | null;
 type HistoryDateFilter = 'today' | 'yesterday' | 'last_week' | 'last_month' | 'custom' | 'all';
+type ActiveTab = 'active' | 'history' | 'settings';
 
 interface HistorySummary { delivered: number; failed: number; total: number; }
 
@@ -59,12 +61,17 @@ export default function DriverDashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [groupActionId, setGroupActionId] = useState<string | null>(null);
   const [orderActionId, setOrderActionId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+
+  // Settings
+  const [settingsForm, setSettingsForm] = useState({ name: '', age: '', phone: '', license_number: '', license_class: '' });
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const photoRef = useRef<HTMLInputElement>(null);
   const signatureRef = useRef<HTMLInputElement>(null);
 
   // History tab
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('active');
   const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
@@ -154,6 +161,7 @@ export default function DriverDashboardPage() {
         return;
       }
       setDriver(d.driver);
+      setSettingsForm({ name: d.driver.name || '', age: String(d.driver.age || ''), phone: d.driver.phone || '', license_number: d.driver.license_number || '', license_class: d.driver.license_class || '' });
       fetchOrders();
     };
     init();
@@ -163,6 +171,25 @@ export default function DriverDashboardPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/driver/login');
+  };
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      const res = await fetch('/api/drivers/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...settingsForm, age: Number(settingsForm.age) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDriver(data.driver);
+      toast.success('Profile updated');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   const openMaps = (address: string) => {
@@ -276,12 +303,13 @@ export default function DriverDashboardPage() {
       <div className="bg-white border-b border-gray-200 sticky top-[65px] z-10">
         <div className="max-w-2xl mx-auto px-4 flex gap-1">
           {[
-            { id: 'active', label: 'Active Deliveries', count: totalOrders },
-            { id: 'history', label: 'My History', count: historySummary.total },
+            { id: 'active', label: 'Active', count: totalOrders, icon: <Truck size={15} /> },
+            { id: 'history', label: 'History', count: historySummary.total, icon: <History size={15} /> },
+            { id: 'settings', label: 'Settings', count: null, icon: <User size={15} /> },
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'active' | 'history')}
+              onClick={() => setActiveTab(tab.id as ActiveTab)}
               className={cn(
                 'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab.id
@@ -289,12 +317,14 @@ export default function DriverDashboardPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
-              {tab.id === 'history' ? <History size={15} /> : <Truck size={15} />}
+              {tab.icon}
               {tab.label}
-              <span className={cn(
-                'text-xs px-1.5 py-0.5 rounded-full font-semibold',
-                activeTab === tab.id ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'
-              )}>{tab.count}</span>
+              {tab.count !== null && (
+                <span className={cn(
+                  'text-xs px-1.5 py-0.5 rounded-full font-semibold',
+                  activeTab === tab.id ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'
+                )}>{tab.count}</span>
+              )}
             </button>
           ))}
         </div>
@@ -406,6 +436,45 @@ export default function DriverDashboardPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── SETTINGS TAB ── */}
+        {activeTab === 'settings' && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-gray-900">Account Settings</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Update your profile details</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {[
+                { key: 'name', label: 'Full Name', type: 'text', required: true },
+                { key: 'phone', label: 'Phone Number', type: 'tel', required: true },
+                { key: 'age', label: 'Age', type: 'number', required: true },
+                { key: 'license_number', label: 'License Number', type: 'text', required: true },
+                { key: 'license_class', label: 'License Class', type: 'text', required: true },
+              ].map(({ key, label, type, required }) => (
+                <div key={key}>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">
+                    {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+                  </label>
+                  <input
+                    type={type}
+                    value={settingsForm[key as keyof typeof settingsForm]}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+              ))}
+              <div className="bg-teal-50 border border-teal-100 rounded-lg px-4 py-3 text-xs text-teal-700">
+                Username, email, and license documents cannot be changed here. Contact support for those updates.
+              </div>
+            </div>
+            <div className="px-6 pb-6">
+              <Button className="w-full bg-teal-600 hover:bg-teal-700" onClick={saveSettings} loading={settingsSaving}>
+                Save Changes
+              </Button>
+            </div>
           </div>
         )}
 
@@ -524,11 +593,7 @@ export default function DriverDashboardPage() {
                               size="sm"
                               variant="ghost"
                               loading={orderActionId === order.id + 'cancel'}
-                              onClick={() => {
-                                if (confirm('Cancel this delivery order?')) {
-                                  orderAction(order.id, 'cancel');
-                                }
-                              }}
+                              onClick={() => setCancelTarget(order)}
                               className="text-red-400 hover:text-red-600"
                             >
                               <XCircle size={14} /> Cancel
@@ -576,6 +641,23 @@ export default function DriverDashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Cancel Delivery Confirm */}
+      <ConfirmModal
+        open={!!cancelTarget}
+        title="Cancel Delivery"
+        message={`Cancel delivery for ${cancelTarget?.patient_name}? The order will be unassigned from you.`}
+        confirmLabel="Cancel Delivery"
+        variant="danger"
+        requireReason={true}
+        reasonLabel="Reason for cancellation"
+        reasonPlaceholder="Why are you cancelling this delivery?"
+        onConfirm={() => {
+          if (cancelTarget) orderAction(cancelTarget.id, 'cancel');
+          setCancelTarget(null);
+        }}
+        onClose={() => setCancelTarget(null)}
+      />
 
       {/* Delivery / Failure Modal */}
       {modalMode && selectedOrder && (

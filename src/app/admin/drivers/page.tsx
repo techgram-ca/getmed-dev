@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Driver } from '@/types';
+import { Driver, DriverStatus } from '@/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { DRIVER_STATUS_COLORS } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CheckCircle, XCircle, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Pencil, Trash2, RefreshCw, AlertCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminDriversPage() {
@@ -18,16 +19,21 @@ export default function AdminDriversPage() {
   const [filter, setFilter] = useState('all');
   const [actionId, setActionId] = useState<string | null>(null);
 
+  // Edit modal
+  const [editDriver, setEditDriver] = useState<Driver | null>(null);
+  const [editStatus, setEditStatus] = useState<DriverStatus>('pending');
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null);
+
   const fetchDrivers = useCallback(async () => {
     setLoading(true);
     setFetchError('');
     try {
       const res = await fetch('/api/admin/drivers');
       const data = await res.json();
-      if (res.status === 401 || res.status === 403) {
-        router.push('/admin/login');
-        return;
-      }
+      if (res.status === 401 || res.status === 403) { router.push('/admin/login'); return; }
       if (!res.ok) throw new Error(data.error || 'Failed to load drivers');
       setDrivers(data.drivers || []);
     } catch (err: unknown) {
@@ -39,25 +45,46 @@ export default function AdminDriversPage() {
 
   useEffect(() => { fetchDrivers(); }, [fetchDrivers]);
 
-  const performAction = async (id: string, action: string) => {
-    setActionId(id);
+  const openEdit = (d: Driver) => { setEditDriver(d); setEditStatus(d.status); };
+  const closeEdit = () => { setEditDriver(null); };
+
+  const saveEdit = async () => {
+    if (!editDriver) return;
+    setEditSaving(true);
     try {
-      let res;
-      if (action === 'delete') {
-        res = await fetch(`/api/admin/drivers?id=${id}`, { method: 'DELETE' });
-      } else {
-        res = await fetch('/api/admin/drivers', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, action }),
-        });
-      }
+      const res = await fetch('/api/admin/drivers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editDriver.id, action: editStatus === 'approved' ? 'approve' : editStatus === 'rejected' ? 'reject' : 'pending' }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Driver ${action === 'delete' ? 'removed' : action + 'd'}`);
+      toast.success('Driver status updated');
+      closeEdit();
       fetchDrivers();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Action failed');
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const deleteDriver = async (reason?: string) => {
+    if (!deleteTarget) return;
+    setActionId(deleteTarget.id);
+    try {
+      const res = await fetch(`/api/admin/drivers?id=${deleteTarget.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Driver removed');
+      setDeleteTarget(null);
+      fetchDrivers();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {
       setActionId(null);
     }
@@ -74,8 +101,7 @@ export default function AdminDriversPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Driver Management</h1>
         <Button variant="outline" size="sm" onClick={fetchDrivers}>
-          <RefreshCw size={14} />
-          Refresh
+          <RefreshCw size={14} /> Refresh
         </Button>
       </div>
 
@@ -150,56 +176,29 @@ export default function AdminDriversPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-600">{d.age}</td>
                   <td className="px-4 py-3">
-                    <Badge className={DRIVER_STATUS_COLORS[d.status]}>
-                      {d.status}
-                    </Badge>
+                    <Badge className={DRIVER_STATUS_COLORS[d.status]}>{d.status}</Badge>
                     {d.deleted_at && <Badge className="ml-1 bg-red-100 text-red-700">Deleted</Badge>}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-400">
                     {format(new Date(d.created_at), 'MMM d, yyyy')}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {!d.deleted_at && (
-                        <>
-                          {d.status !== 'approved' && (
-                            <Button
-                              size="sm"
-                              loading={actionId === d.id}
-                              onClick={() => performAction(d.id, 'approve')}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <CheckCircle size={14} />
-                              Approve
-                            </Button>
-                          )}
-                          {d.status !== 'rejected' && (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              loading={actionId === d.id}
-                              onClick={() => performAction(d.id, 'reject')}
-                            >
-                              <XCircle size={14} />
-                              Reject
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            loading={actionId === d.id}
-                            onClick={() => {
-                              if (confirm(`Remove driver "${d.name}"?`)) {
-                                performAction(d.id, 'delete');
-                              }
-                            }}
-                            className="text-red-400 hover:text-red-600"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    {!d.deleted_at && (
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(d)}>
+                          <Pencil size={13} /> Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          loading={actionId === d.id}
+                          onClick={() => setDeleteTarget(d)}
+                          className="text-red-400 hover:text-red-600"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -207,6 +206,64 @@ export default function AdminDriversPage() {
           </table>
         </div>
       )}
+
+      {/* Edit Driver Modal */}
+      {editDriver && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-gray-900">Edit Driver</h2>
+              <button onClick={closeEdit} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700">{editDriver.name}</p>
+                <p className="text-xs text-gray-400">@{editDriver.username} · {editDriver.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-2">Status</label>
+                <div className="flex gap-2">
+                  {(['pending', 'approved', 'rejected'] as DriverStatus[]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setEditStatus(s)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize border transition-all ${
+                        editStatus === s
+                          ? s === 'approved' ? 'bg-green-600 text-white border-green-600'
+                            : s === 'rejected' ? 'bg-red-600 text-white border-red-600'
+                            : 'bg-yellow-500 text-white border-yellow-500'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={closeEdit}>Cancel</Button>
+              <Button className="flex-1" onClick={saveEdit} loading={editSaving}>Save</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Remove Driver"
+        message={`Are you sure you want to remove "${deleteTarget?.name}"? This action cannot be undone.`}
+        confirmLabel="Remove Driver"
+        variant="danger"
+        requireReason={true}
+        reasonLabel="Reason for removal"
+        reasonPlaceholder="Enter reason for removing this driver..."
+        onConfirm={deleteDriver}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

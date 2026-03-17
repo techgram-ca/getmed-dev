@@ -7,12 +7,13 @@ import { Order, Pharmacy } from '@/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS, cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
-  LogOut, Package, Clock, Truck, CheckCircle, Eye, RefreshCw,
+  LogOut, Package, Eye, RefreshCw,
   CheckCircle2, XCircle, Calendar, Truck as TruckIcon, User, FileText, Image as ImageIcon,
-  BarChart2,
+  BarChart2, Clock, CheckCircle, Settings,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -48,17 +49,6 @@ function OrderStatusBadge({ status }: { status: string }) {
   );
 }
 
-function StatCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
-      <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center', color)}>{icon}</div>
-      <div>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        <p className="text-sm text-gray-500">{label}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function PharmacyDashboard() {
   const router = useRouter();
@@ -75,6 +65,12 @@ export default function PharmacyDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ orderId: string; toStatus: string; label: string } | null>(null);
+
+  // Account settings
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ name: '', phone: '', emergency_contact: '', address: '', city: '', province: '', postal_code: '' });
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const buildOrdersQuery = useCallback((page = 1) => {
     const params = new URLSearchParams({ date_filter: dateFilter, page: String(page), page_size: '10' });
@@ -94,6 +90,10 @@ export default function PharmacyDashboard() {
       const pharmacyData = await pharmacyRes.json();
       const ordersData = await ordersRes.json();
       setPharmacy(pharmacyData.pharmacy);
+      if (pharmacyData.pharmacy) {
+        const p = pharmacyData.pharmacy;
+        setSettingsForm({ name: p.name || '', phone: p.phone || '', emergency_contact: p.emergency_contact || '', address: p.address || '', city: p.city || '', province: p.province || '', postal_code: p.postal_code || '' });
+      }
       setOrders(ordersData.orders || []);
       setTotalOrders(ordersData.total ?? ordersData.orders?.length ?? 0);
       setCurrentPage(1);
@@ -127,6 +127,26 @@ export default function PharmacyDashboard() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/pharmacy/login');
+  };
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      const res = await fetch('/api/pharmacies/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setPharmacy(data.pharmacy);
+      setShowSettings(false);
+      toast.success('Account details updated');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   const updateStatus = async (orderId: string, status: string) => {
@@ -169,20 +189,10 @@ export default function PharmacyDashboard() {
 
   const filtered = statusFilter === 'all' ? orders : orders.filter((o) => o.status === statusFilter);
 
-  // Stats reflect the current date filter
-  const stats = {
-    pending: statusCounts['pending'] ?? 0,
-    processing: statusCounts['processing'] ?? 0,
-    ready: statusCounts['ready_for_delivery'] ?? 0,
-    delivered: statusCounts['delivered'] ?? 0,
-  };
-
-  const allStatusStats = [
+  const orderStats = [
     { key: 'pending', label: 'Pending', color: 'text-yellow-600 bg-yellow-50' },
     { key: 'processing', label: 'Processing', color: 'text-blue-600 bg-blue-50' },
     { key: 'ready_for_delivery', label: 'Ready', color: 'text-purple-600 bg-purple-50' },
-    { key: 'assigned', label: 'Assigned', color: 'text-indigo-600 bg-indigo-50' },
-    { key: 'out_for_delivery', label: 'Out for Delivery', color: 'text-cyan-600 bg-cyan-50' },
     { key: 'delivered', label: 'Delivered', color: 'text-green-600 bg-green-50' },
     { key: 'delivery_failed', label: 'Failed', color: 'text-red-600 bg-red-50' },
     { key: 'cancelled', label: 'Cancelled', color: 'text-gray-600 bg-gray-100' },
@@ -234,6 +244,9 @@ export default function PharmacyDashboard() {
             <button onClick={fetchData} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
               <RefreshCw size={18} />
             </button>
+            <button onClick={() => setShowSettings(true)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+              <Settings size={18} />
+            </button>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut size={16} /> Sign Out
             </Button>
@@ -242,15 +255,7 @@ export default function PharmacyDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <StatCard label="Pending" value={stats.pending} icon={<Package size={20} className="text-yellow-600" />} color="bg-yellow-50" />
-          <StatCard label="Processing" value={stats.processing} icon={<Clock size={20} className="text-blue-600" />} color="bg-blue-50" />
-          <StatCard label="Ready for Delivery" value={stats.ready} icon={<Truck size={20} className="text-purple-600" />} color="bg-purple-50" />
-          <StatCard label="Delivered" value={stats.delivered} icon={<CheckCircle size={20} className="text-green-600" />} color="bg-green-50" />
-        </div>
-
-        {/* Order Stats Breakdown */}
+        {/* Order Stats */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <BarChart2 size={16} className="text-gray-400" />
@@ -259,10 +264,10 @@ export default function PharmacyDashboard() {
               ({dateFilter === 'all' ? 'All time' : dateFilter === 'today' ? 'Today' : dateFilter === 'yesterday' ? 'Yesterday' : dateFilter === 'last_week' ? 'Last 7 days' : customDate || 'Custom'})
             </span>
           </div>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-            {allStatusStats.map(({ key, label, color }) => (
-              <div key={key} className={cn('rounded-lg px-2 py-2 text-center', color.split(' ')[1])}>
-                <p className={cn('text-lg font-bold', color.split(' ')[0])}>{statusCounts[key] ?? 0}</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {orderStats.map(({ key, label, color }) => (
+              <div key={key} className={cn('rounded-xl px-3 py-3 text-center', color.split(' ')[1])}>
+                <p className={cn('text-2xl font-bold', color.split(' ')[0])}>{statusCounts[key] ?? 0}</p>
                 <p className="text-xs text-gray-500 mt-0.5 leading-tight">{label}</p>
               </div>
             ))}
@@ -374,7 +379,13 @@ export default function PharmacyDashboard() {
                                 size="sm"
                                 variant={a.variant === 'danger' ? 'danger' : a.variant === 'outline' ? 'outline' : undefined}
                                 loading={updatingId === order.id}
-                                onClick={() => updateStatus(order.id, a.toStatus)}
+                                onClick={() => {
+                                  if (a.variant === 'danger') {
+                                    setConfirmAction({ orderId: order.id, toStatus: a.toStatus, label: a.label });
+                                  } else {
+                                    updateStatus(order.id, a.toStatus);
+                                  }
+                                }}
                               >
                                 {a.toStatus === 'processing' && <CheckCircle2 size={14} />}
                                 {a.toStatus === 'cancelled' && <XCircle size={14} />}
@@ -555,7 +566,13 @@ export default function PharmacyDashboard() {
                       size="sm"
                       variant={a.variant === 'danger' ? 'danger' : a.variant === 'outline' ? 'outline' : undefined}
                       loading={updatingId === selectedOrder.id}
-                      onClick={() => updateStatus(selectedOrder.id, a.toStatus)}
+                      onClick={() => {
+                        if (a.variant === 'danger') {
+                          setConfirmAction({ orderId: selectedOrder.id, toStatus: a.toStatus, label: a.label });
+                        } else {
+                          updateStatus(selectedOrder.id, a.toStatus);
+                        }
+                      }}
                     >
                       {a.label}
                     </Button>
@@ -572,6 +589,76 @@ export default function PharmacyDashboard() {
           </div>
         )}
       </Modal>
+
+      {/* Account Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Settings size={18} className="text-blue-600" />
+                </div>
+                <h2 className="text-base font-semibold text-gray-900">Account Settings</h2>
+              </div>
+              <button onClick={() => setShowSettings(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+                <XCircle size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {[
+                { key: 'name', label: 'Pharmacy Name', required: true },
+                { key: 'phone', label: 'Phone Number', required: true },
+                { key: 'emergency_contact', label: 'Emergency Contact' },
+                { key: 'address', label: 'Address', required: true },
+                { key: 'city', label: 'City' },
+                { key: 'province', label: 'Province' },
+                { key: 'postal_code', label: 'Postal Code' },
+              ].map(({ key, label, required }) => (
+                <div key={key}>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">
+                    {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={settingsForm[key as keyof typeof settingsForm]}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-xs text-blue-700">
+                Email address cannot be changed. Contact support if you need to update it.
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex gap-3 sticky bottom-0 bg-white border-t border-gray-100 pt-4">
+              <Button variant="outline" className="flex-1" onClick={() => setShowSettings(false)}>Cancel</Button>
+              <Button className="flex-1" onClick={saveSettings} loading={settingsSaving}>Save Changes</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm dangerous actions (reject/cancel) */}
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.toStatus === 'cancelled' ? 'Cancel Order' : 'Reject Order'}
+        message={
+          confirmAction?.toStatus === 'cancelled'
+            ? 'Are you sure you want to cancel this order? This cannot be undone.'
+            : 'Are you sure you want to reject this order?'
+        }
+        confirmLabel={confirmAction?.label || 'Confirm'}
+        variant="danger"
+        requireReason={true}
+        reasonLabel="Reason"
+        reasonPlaceholder="Enter reason..."
+        onConfirm={() => {
+          if (confirmAction) updateStatus(confirmAction.orderId, confirmAction.toStatus);
+          setConfirmAction(null);
+        }}
+        onClose={() => setConfirmAction(null)}
+      />
     </div>
   );
 }
