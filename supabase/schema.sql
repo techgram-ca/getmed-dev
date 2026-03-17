@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS pharmacies (
   longitude DOUBLE PRECISION NOT NULL,
   opening_hours JSONB DEFAULT '{}',
   accepted_payment_methods TEXT[] DEFAULT ARRAY['cash', 'credit_card', 'debit_card'],
+  services JSONB DEFAULT '{"portal_onboarding": true, "prescription_delivery": true}',
   rating DECIMAL(3,2) DEFAULT 0,
   review_count INTEGER DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'suspended')),

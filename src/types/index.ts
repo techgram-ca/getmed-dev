@@ -16,6 +16,10 @@ export interface Pharmacy {
   rating: number;
   review_count: number;
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
+  services?: {
+    portal_onboarding: boolean;
+    prescription_delivery: boolean;
+  };
   terms_accepted: boolean;
   terms_accepted_at?: string;
   deleted_at?: string;

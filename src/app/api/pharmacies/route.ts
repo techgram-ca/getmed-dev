@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     name, email, password, phone, emergency_contact,
     address, city, province, postal_code,
     latitude, longitude, opening_hours,
-    accepted_payment_methods, terms_accepted,
+    accepted_payment_methods, services, terms_accepted,
   } = body;
 
   if (!name || !email || !password || !phone || !address || !latitude || !longitude) {
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       longitude,
       opening_hours: opening_hours || {},
       accepted_payment_methods: accepted_payment_methods || ['cash', 'credit_card', 'debit_card'],
+      services: services ?? { portal_onboarding: true, prescription_delivery: true },
       status: 'pending',
       terms_accepted: true,
       terms_accepted_at: new Date().toISOString(),
