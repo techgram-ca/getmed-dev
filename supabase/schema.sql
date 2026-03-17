@@ -144,9 +144,100 @@ CREATE TRIGGER update_orders_updated_at
   BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- =============================================================================
+-- MIGRATION: Driver & Delivery System
+-- Run these statements in Supabase SQL editor
+-- =============================================================================
+
+-- Drivers Table
+CREATE TABLE IF NOT EXISTS drivers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  age INTEGER NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  license_number TEXT NOT NULL,
+  license_class TEXT NOT NULL,
+  license_photo_url TEXT,
+  insurance_photo_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  terms_accepted BOOLEAN DEFAULT FALSE,
+  terms_accepted_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS on drivers
+ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
+
+-- Drivers RLS policies
+CREATE POLICY "Drivers can view their own profile"
+  ON drivers FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Drivers can update their own profile"
+  ON drivers FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Anyone can insert driver during registration"
+  ON drivers FOR INSERT
+  WITH CHECK (true);
+
+-- Extend orders table for delivery
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS driver_id UUID REFERENCES drivers(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS delivery_notes TEXT,
+  ADD COLUMN IF NOT EXISTS delivery_photo_url TEXT,
+  ADD COLUMN IF NOT EXISTS delivery_signature_url TEXT,
+  ADD COLUMN IF NOT EXISTS failure_reason TEXT,
+  ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ;
+
+-- Update orders status CHECK to include delivery statuses
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+ALTER TABLE orders ADD CONSTRAINT orders_status_check
+  CHECK (status IN ('pending', 'processing', 'ready_for_delivery', 'assigned', 'out_for_delivery', 'delivered', 'delivery_failed', 'cancelled'));
+
+-- Drivers can view orders assigned to them
+CREATE POLICY "Drivers can view their assigned orders"
+  ON orders FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM drivers
+      WHERE drivers.id = orders.driver_id
+      AND drivers.user_id = auth.uid()
+    )
+  );
+
+-- Drivers can update orders assigned to them
+CREATE POLICY "Drivers can update their assigned orders"
+  ON orders FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM drivers
+      WHERE drivers.id = orders.driver_id
+      AND drivers.user_id = auth.uid()
+    )
+  );
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_drivers_status ON drivers(status);
+CREATE INDEX IF NOT EXISTS idx_drivers_deleted ON drivers(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_orders_driver ON orders(driver_id);
+
+-- Updated_at trigger for drivers
+CREATE TRIGGER update_drivers_updated_at
+  BEFORE UPDATE ON drivers
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Storage buckets (run in Supabase dashboard or use API)
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('prescriptions', 'prescriptions', false);
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('insurance-cards', 'insurance-cards', false);
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('driver-documents', 'driver-documents', false);
 
 -- Storage policies for prescriptions bucket
 -- CREATE POLICY "Anyone can upload prescriptions" ON storage.objects

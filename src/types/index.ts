@@ -45,7 +45,7 @@ export interface DayHours {
 }
 
 export type OrderType = 'otc' | 'prescription' | 'transfer';
-export type OrderStatus = 'pending' | 'processing' | 'ready_for_delivery' | 'delivered' | 'cancelled';
+export type OrderStatus = 'pending' | 'processing' | 'ready_for_delivery' | 'assigned' | 'out_for_delivery' | 'delivered' | 'delivery_failed' | 'cancelled';
 
 export interface Order {
   id: string;
@@ -67,9 +67,40 @@ export interface Order {
   insurance_image_url?: string;
   status: OrderStatus;
   notes?: string;
+  driver_id?: string;
+  delivery_notes?: string;
+  delivery_photo_url?: string;
+  delivery_signature_url?: string;
+  failure_reason?: string;
+  assigned_at?: string;
+  acknowledged_at?: string;
+  delivered_at?: string;
   created_at: string;
   updated_at: string;
   pharmacies?: Pharmacy;
+  drivers?: Driver;
+}
+
+export type DriverStatus = 'pending' | 'approved' | 'rejected';
+
+export interface Driver {
+  id: string;
+  user_id: string;
+  username: string;
+  name: string;
+  age: number;
+  phone: string;
+  email: string;
+  license_number: string;
+  license_class: string;
+  license_photo_url?: string;
+  insurance_photo_url?: string;
+  status: DriverStatus;
+  terms_accepted: boolean;
+  terms_accepted_at?: string;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PlatformSettings {

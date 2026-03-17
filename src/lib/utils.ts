@@ -59,7 +59,10 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   processing: 'Processing',
   ready_for_delivery: 'Ready for Delivery',
+  assigned: 'Assigned to Driver',
+  out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
+  delivery_failed: 'Delivery Failed',
   cancelled: 'Cancelled',
 };
 
@@ -67,7 +70,10 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   processing: 'bg-blue-100 text-blue-800',
   ready_for_delivery: 'bg-purple-100 text-purple-800',
+  assigned: 'bg-indigo-100 text-indigo-800',
+  out_for_delivery: 'bg-orange-100 text-orange-800',
   delivered: 'bg-green-100 text-green-800',
+  delivery_failed: 'bg-red-100 text-red-800',
   cancelled: 'bg-red-100 text-red-800',
 };
 
@@ -77,6 +83,21 @@ export const PHARMACY_STATUS_COLORS: Record<string, string> = {
   rejected: 'bg-red-100 text-red-800',
   suspended: 'bg-gray-100 text-gray-800',
 };
+
+export const DRIVER_STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  approved: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-800',
+};
+
+export const DELIVERY_FAILURE_REASONS = [
+  'Patient not home',
+  'Wrong address',
+  'Patient refused delivery',
+  'Unable to access building',
+  'Order damaged',
+  'Other',
+];
 
 export function cn(...classes: (string | undefined | false | null)[]): string {
   return classes.filter(Boolean).join(' ');
