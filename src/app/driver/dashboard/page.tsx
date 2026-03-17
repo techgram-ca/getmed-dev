@@ -587,8 +587,8 @@ export default function DriverDashboardPage() {
 
                         {/* Per-order actions */}
                         <div className="flex gap-2 flex-wrap">
-                          {/* Cancel — available while not yet out for delivery */}
-                          {['assigned', 'acknowledged', 'picked_up'].includes(order.status) && (
+                          {/* Cancel — only available after pickup, before going out for delivery */}
+                          {order.status === 'picked_up' && (
                             <Button
                               size="sm"
                               variant="ghost"

@@ -104,11 +104,8 @@ export async function PATCH(request: NextRequest) {
 
   // ── cancel ──
   if (action === 'cancel') {
-    if (existing.status === 'out_for_delivery') {
-      return NextResponse.json({ error: 'Cannot cancel an order that is already out for delivery' }, { status: 400 });
-    }
-    if (!['assigned', 'acknowledged', 'picked_up'].includes(existing.status)) {
-      return NextResponse.json({ error: 'Order cannot be cancelled from current status' }, { status: 400 });
+    if (existing.status !== 'picked_up') {
+      return NextResponse.json({ error: 'You can only cancel after picking up the order' }, { status: 400 });
     }
     const { data: order, error: updateErr } = await adminClient
       .from('orders')

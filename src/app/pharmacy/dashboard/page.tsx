@@ -23,8 +23,8 @@ interface OrderWithDriver extends Omit<Order, 'drivers'> {
   drivers?: { id: string; name: string; phone: string } | null;
 }
 
-// Statuses pharmacy cannot act on (driver has taken over)
-const DRIVER_LOCKED = new Set(['assigned', 'acknowledged', 'picked_up', 'out_for_delivery', 'delivered', 'delivery_failed']);
+// Statuses pharmacy cannot act on (driver has physically picked up)
+const DRIVER_LOCKED = new Set(['picked_up', 'out_for_delivery', 'delivered', 'delivery_failed']);
 
 // Actions available per current status
 function getPharmacyActions(status: string): { label: string; toStatus: string; variant: 'primary' | 'danger' | 'outline' }[] {
@@ -35,7 +35,7 @@ function getPharmacyActions(status: string): { label: string; toStatus: string; 
   if (status === 'processing') return [
     { label: 'Mark Ready for Delivery', toStatus: 'ready_for_delivery', variant: 'primary' },
   ];
-  if (status === 'ready_for_delivery') return [
+  if (status === 'ready_for_delivery' || status === 'assigned' || status === 'acknowledged') return [
     { label: 'Cancel Order', toStatus: 'cancelled', variant: 'danger' },
   ];
   return [];

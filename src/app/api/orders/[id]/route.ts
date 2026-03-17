@@ -6,10 +6,12 @@ const PHARMACY_ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending: ['processing', 'cancelled'],           // accept or reject
   processing: ['ready_for_delivery'],             // mark ready
   ready_for_delivery: ['cancelled'],              // cancel before driver assigned
+  assigned: ['cancelled'],                        // cancel after assigned but before pickup
+  acknowledged: ['cancelled'],                    // cancel after acknowledged but before pickup
 };
 
-// Statuses where pharmacy cannot make any changes (driver has taken over)
-const DRIVER_LOCKED_STATUSES = ['assigned', 'acknowledged', 'picked_up', 'out_for_delivery', 'delivered', 'delivery_failed'];
+// Statuses where pharmacy cannot make any changes (driver has physically picked up)
+const DRIVER_LOCKED_STATUSES = ['picked_up', 'out_for_delivery', 'delivered', 'delivery_failed'];
 
 export async function PATCH(
   request: NextRequest,
