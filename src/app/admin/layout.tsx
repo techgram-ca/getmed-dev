@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { Building2, ClipboardList, Settings, LogOut, Pill, LayoutDashboard, Truck, UserCheck } from 'lucide-react';
+import { Building2, ClipboardList, Settings, LogOut, Pill, LayoutDashboard, Truck, UserCheck, BarChart2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/admin/orders', label: 'Orders', icon: ClipboardList },
   { href: '/admin/drivers', label: 'Drivers', icon: UserCheck },
   { href: '/admin/deliveries', label: 'Deliveries', icon: Truck },
+  { href: '/admin/driver-stats', label: 'Driver Stats', icon: BarChart2 },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

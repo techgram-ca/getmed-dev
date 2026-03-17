@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-type DateFilter = 'today' | 'yesterday' | 'last_week' | 'custom';
+type DateFilter = 'all' | 'today' | 'yesterday' | 'last_week' | 'custom';
 
 interface OrderWithDriver extends Omit<Order, 'drivers'> {
   drivers?: { id: string; name: string; phone: string } | null;
@@ -70,32 +70,56 @@ export default function PharmacyDashboard() {
   const [customDate, setCustomDate] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const [totalStats, setTotalStats] = useState<Record<string, number>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const buildOrdersQuery = useCallback(() => {
-    const params = new URLSearchParams({ date_filter: dateFilter });
+  const buildOrdersQuery = useCallback((page = 1) => {
+    const params = new URLSearchParams({ date_filter: dateFilter, page: String(page), page_size: '10' });
     if (dateFilter === 'custom' && customDate) params.set('custom_date', customDate);
     return params.toString();
   }, [dateFilter, customDate]);
 
   const fetchData = useCallback(async () => {
     try {
-      const [pharmacyRes, ordersRes] = await Promise.all([
+      const [pharmacyRes, ordersRes, statsRes] = await Promise.all([
         fetch('/api/pharmacies/me'),
-        fetch(`/api/pharmacies/orders?${buildOrdersQuery()}`),
+        fetch(`/api/pharmacies/orders?${buildOrdersQuery(1)}`),
+        fetch('/api/pharmacies/stats'),
       ]);
 
       if (pharmacyRes.status === 401) { router.push('/pharmacy/login'); return; }
 
       const pharmacyData = await pharmacyRes.json();
       const ordersData = await ordersRes.json();
+      const statsData = await statsRes.json();
       setPharmacy(pharmacyData.pharmacy);
       setOrders(ordersData.orders || []);
+      setTotalOrders(ordersData.total ?? ordersData.orders?.length ?? 0);
+      setCurrentPage(1);
+      setTotalStats(statsData.stats || {});
     } catch {
       toast.error('Failed to load dashboard');
     } finally {
       setLoading(false);
     }
   }, [router, buildOrdersQuery]);
+
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const res = await fetch(`/api/pharmacies/orders?${buildOrdersQuery(nextPage)}`);
+      const data = await res.json();
+      setOrders((prev) => [...prev, ...(data.orders || [])]);
+      setCurrentPage(nextPage);
+    } catch {
+      toast.error('Failed to load more orders');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [currentPage, buildOrdersQuery]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -145,14 +169,18 @@ export default function PharmacyDashboard() {
 
   const filtered = statusFilter === 'all' ? orders : orders.filter((o) => o.status === statusFilter);
 
+  // Stats always reflect ALL-TIME totals, independent of the date filter
   const stats = {
-    pending: orders.filter((o) => o.status === 'pending').length,
-    processing: orders.filter((o) => o.status === 'processing').length,
-    ready: orders.filter((o) => o.status === 'ready_for_delivery').length,
-    delivered: orders.filter((o) => o.status === 'delivered').length,
+    pending: totalStats['pending'] ?? 0,
+    processing: totalStats['processing'] ?? 0,
+    ready: totalStats['ready_for_delivery'] ?? 0,
+    delivered: totalStats['delivered'] ?? 0,
   };
 
+  const hasMore = dateFilter === 'all' && orders.length < totalOrders;
+
   const DATE_FILTER_OPTIONS: { value: DateFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
     { value: 'today', label: 'Today' },
     { value: 'yesterday', label: 'Yesterday' },
     { value: 'last_week', label: 'Last 7 Days' },
@@ -220,7 +248,7 @@ export default function PharmacyDashboard() {
               {DATE_FILTER_OPTIONS.map(({ value, label }) => (
                 <button
                   key={value}
-                  onClick={() => setDateFilter(value)}
+                  onClick={() => { setDateFilter(value); setCurrentPage(1); setOrders([]); }}
                   className={cn(
                     'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
                     dateFilter === value
@@ -256,7 +284,7 @@ export default function PharmacyDashboard() {
                   : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
               )}
             >
-              {s === 'all' ? `All (${orders.length})` : ORDER_STATUS_LABELS[s]}
+              {s === 'all' ? `All (${dateFilter === 'all' ? totalOrders : orders.length})` : ORDER_STATUS_LABELS[s]}
             </button>
           ))}
         </div>
@@ -331,6 +359,15 @@ export default function PharmacyDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Load More — only visible in "All" mode */}
+        {hasMore && (
+          <div className="mt-4 text-center">
+            <Button variant="outline" onClick={loadMore} loading={loadingMore}>
+              Load more orders ({orders.length} of {totalOrders})
+            </Button>
           </div>
         )}
       </div>

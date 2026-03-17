@@ -10,6 +10,7 @@ import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS, DELIVERY_FAILURE_REASONS, cn 
 import {
   MapPin, Phone, Package, CheckCircle, XCircle, Navigation,
   LogOut, Truck, Camera, FileSignature, RefreshCw, ShoppingBag,
+  History, Calendar, ChevronDown,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -23,6 +24,18 @@ interface PharmacyGroup {
 }
 
 type ModalMode = 'deliver' | 'fail' | null;
+type HistoryDateFilter = 'today' | 'yesterday' | 'last_week' | 'last_month' | 'custom' | 'all';
+
+interface HistorySummary { delivered: number; failed: number; total: number; }
+
+const HISTORY_FILTER_OPTIONS: { value: HistoryDateFilter; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'last_week', label: 'Last 7 Days' },
+  { value: 'last_month', label: 'Last 30 Days' },
+  { value: 'custom', label: 'Custom' },
+  { value: 'all', label: 'All Time' },
+];
 
 // Derive group-level status from orders
 function groupStatus(orders: Order[]): 'assigned' | 'acknowledged' | 'picked_up' | 'mixed' {
@@ -49,6 +62,17 @@ export default function DriverDashboardPage() {
 
   const photoRef = useRef<HTMLInputElement>(null);
   const signatureRef = useRef<HTMLInputElement>(null);
+
+  // History tab
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historySummary, setHistorySummary] = useState<HistorySummary>({ delivered: 0, failed: 0, total: 0 });
+  const [historyDateFilter, setHistoryDateFilter] = useState<HistoryDateFilter>('today');
+  const [historyCustomDate, setHistoryCustomDate] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -80,6 +104,39 @@ export default function DriverDashboardPage() {
       setLoading(false);
     }
   }, [router]);
+
+  const buildHistoryQuery = useCallback((page = 1) => {
+    const params = new URLSearchParams({ date_filter: historyDateFilter, page: String(page) });
+    if (historyDateFilter === 'custom' && historyCustomDate) params.set('custom_date', historyCustomDate);
+    return params.toString();
+  }, [historyDateFilter, historyCustomDate]);
+
+  const fetchHistory = useCallback(async (page = 1) => {
+    if (page === 1) setHistoryLoading(true); else setHistoryLoadingMore(true);
+    try {
+      const res = await fetch(`/api/driver/history?${buildHistoryQuery(page)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (page === 1) {
+        setHistoryOrders(data.orders || []);
+      } else {
+        setHistoryOrders((prev) => [...prev, ...(data.orders || [])]);
+      }
+      setHistoryTotal(data.total ?? 0);
+      setHistoryPage(page);
+      setHistorySummary(data.summary || { delivered: 0, failed: 0, total: 0 });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load history');
+    } finally {
+      setHistoryLoading(false);
+      setHistoryLoadingMore(false);
+    }
+  }, [buildHistoryQuery]);
+
+  // Refetch history when tab becomes active or filters change
+  useEffect(() => {
+    if (activeTab === 'history') { fetchHistory(1); }
+  }, [activeTab, fetchHistory]);
 
   useEffect(() => {
     const init = async () => {
@@ -206,7 +263,7 @@ export default function DriverDashboardPage() {
           </div>
           <div>
             <p className="font-semibold text-gray-900">{driver?.name}</p>
-            <p className="text-xs text-gray-500">@{driver?.username} · {totalOrders} active order{totalOrders !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-500">@{driver?.username} · {totalOrders} active · {historySummary.total} delivered</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -215,8 +272,145 @@ export default function DriverDashboardPage() {
         </div>
       </header>
 
+      {/* Tab bar */}
+      <div className="bg-white border-b border-gray-200 sticky top-[65px] z-10">
+        <div className="max-w-2xl mx-auto px-4 flex gap-1">
+          {[
+            { id: 'active', label: 'Active Deliveries', count: totalOrders },
+            { id: 'history', label: 'My History', count: historySummary.total },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as 'active' | 'history')}
+              className={cn(
+                'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+                activeTab === tab.id
+                  ? 'border-teal-600 text-teal-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+            >
+              {tab.id === 'history' ? <History size={15} /> : <Truck size={15} />}
+              {tab.label}
+              <span className={cn(
+                'text-xs px-1.5 py-0.5 rounded-full font-semibold',
+                activeTab === tab.id ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'
+              )}>{tab.count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="max-w-2xl mx-auto px-4 py-6">
-        {groups.length === 0 ? (
+        {/* ── HISTORY TAB ── */}
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Total', value: historySummary.total, color: 'bg-gray-50 border-gray-200', text: 'text-gray-900' },
+                { label: 'Delivered', value: historySummary.delivered, color: 'bg-green-50 border-green-100', text: 'text-green-700' },
+                { label: 'Failed', value: historySummary.failed, color: 'bg-red-50 border-red-100', text: 'text-red-600' },
+              ].map((c) => (
+                <div key={c.label} className={`border rounded-xl p-3 text-center ${c.color}`}>
+                  <p className={`text-2xl font-bold ${c.text}`}>{c.value}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{c.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Date filter */}
+            <div className="bg-white rounded-xl border border-gray-200 p-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Calendar size={14} className="text-gray-400 shrink-0" />
+                <div className="flex gap-1.5 flex-wrap">
+                  {HISTORY_FILTER_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => { setHistoryDateFilter(value); setHistoryPage(1); setHistoryOrders([]); }}
+                      className={cn(
+                        'px-3 py-1 rounded-lg text-xs font-medium transition-all',
+                        historyDateFilter === value ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {historyDateFilter === 'custom' && (
+                  <input
+                    type="date"
+                    value={historyCustomDate}
+                    onChange={(e) => { setHistoryCustomDate(e.target.value); setHistoryPage(1); setHistoryOrders([]); }}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* History list */}
+            {historyLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : historyOrders.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <History size={36} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No completed deliveries for this period</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {historyOrders.map((order) => (
+                  <div key={order.id} className={cn(
+                    'bg-white rounded-xl border p-4',
+                    order.status === 'delivered' ? 'border-green-100' : 'border-red-100'
+                  )}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <p className="font-semibold text-gray-900 text-sm">{order.patient_name}</p>
+                          <Badge className={ORDER_STATUS_COLORS[order.status]}>
+                            {ORDER_STATUS_LABELS[order.status]}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <MapPin size={11} />{order.patient_address}
+                        </p>
+                        {(order.pharmacies as { name?: string })?.name && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            From: {(order.pharmacies as { name: string }).name}
+                          </p>
+                        )}
+                        {order.failure_reason && (
+                          <p className="text-xs text-red-500 mt-0.5">Reason: {order.failure_reason}</p>
+                        )}
+                        {order.delivery_notes && (
+                          <p className="text-xs text-gray-400 mt-0.5 italic">{order.delivery_notes}</p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-gray-400">
+                          {order.delivered_at
+                            ? format(new Date(order.delivered_at), 'MMM d, HH:mm')
+                            : format(new Date(order.created_at), 'MMM d')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {historyOrders.length < historyTotal && (
+                  <div className="text-center pt-2">
+                    <Button variant="outline" size="sm" onClick={() => fetchHistory(historyPage + 1)} loading={historyLoadingMore}>
+                      <ChevronDown size={14} /> Load more ({historyOrders.length} of {historyTotal})
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── ACTIVE DELIVERIES TAB ── */}
+        {activeTab === 'active' && (groups.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
             <Package size={40} className="text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">No active deliveries</p>
@@ -380,7 +574,7 @@ export default function DriverDashboardPage() {
               );
             })}
           </div>
-        )}
+        ))}
       </div>
 
       {/* Delivery / Failure Modal */}
