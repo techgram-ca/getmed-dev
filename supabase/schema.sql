@@ -200,7 +200,10 @@ ALTER TABLE orders
 -- Update orders status CHECK to include delivery statuses
 ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
 ALTER TABLE orders ADD CONSTRAINT orders_status_check
-  CHECK (status IN ('pending', 'processing', 'ready_for_delivery', 'assigned', 'out_for_delivery', 'delivered', 'delivery_failed', 'cancelled'));
+  CHECK (status IN ('pending', 'processing', 'ready_for_delivery', 'assigned', 'acknowledged', 'picked_up', 'out_for_delivery', 'delivered', 'delivery_failed', 'cancelled'));
+
+-- Add picked_up_at column for driver pickup tracking
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS picked_up_at TIMESTAMPTZ;
 
 -- Drivers can view orders assigned to them
 CREATE POLICY "Drivers can view their assigned orders"

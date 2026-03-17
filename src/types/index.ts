@@ -45,7 +45,7 @@ export interface DayHours {
 }
 
 export type OrderType = 'otc' | 'prescription' | 'transfer';
-export type OrderStatus = 'pending' | 'processing' | 'ready_for_delivery' | 'assigned' | 'out_for_delivery' | 'delivered' | 'delivery_failed' | 'cancelled';
+export type OrderStatus = 'pending' | 'processing' | 'ready_for_delivery' | 'assigned' | 'acknowledged' | 'picked_up' | 'out_for_delivery' | 'delivered' | 'delivery_failed' | 'cancelled';
 
 export interface Order {
   id: string;
@@ -74,6 +74,7 @@ export interface Order {
   failure_reason?: string;
   assigned_at?: string;
   acknowledged_at?: string;
+  picked_up_at?: string;
   delivered_at?: string;
   created_at: string;
   updated_at: string;
