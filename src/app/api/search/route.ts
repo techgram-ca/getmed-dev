@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     .select('*')
     .eq('status', 'approved')
     .is('deleted_at', null)
+    .eq('services->>portal_onboarding', 'true')
     .gte('latitude', lat - latDelta)
     .lte('latitude', lat + latDelta)
     .gte('longitude', lng - lngDelta)
