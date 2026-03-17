@@ -67,5 +67,19 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ orders, total: count ?? orders?.length ?? 0, page, page_size: pageSize });
+  // Per-status counts for the current date filter (independent of pagination)
+  let statsQuery = adminClient
+    .from('orders')
+    .select('status')
+    .eq('pharmacy_id', pharmacy.id);
+  if (range) {
+    statsQuery = statsQuery.gte('created_at', range.from).lt('created_at', range.to);
+  }
+  const { data: statusRows } = await statsQuery;
+  const status_counts: Record<string, number> = {};
+  for (const r of statusRows || []) {
+    status_counts[r.status] = (status_counts[r.status] || 0) + 1;
+  }
+
+  return NextResponse.json({ orders, total: count ?? orders?.length ?? 0, page, page_size: pageSize, status_counts });
 }

@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import {
   LogOut, Package, Clock, Truck, CheckCircle, Eye, RefreshCw,
   CheckCircle2, XCircle, Calendar, Truck as TruckIcon, User, FileText, Image as ImageIcon,
+  BarChart2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -70,7 +71,7 @@ export default function PharmacyDashboard() {
   const [customDate, setCustomDate] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
-  const [totalStats, setTotalStats] = useState<Record<string, number>>({});
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -83,22 +84,20 @@ export default function PharmacyDashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [pharmacyRes, ordersRes, statsRes] = await Promise.all([
+      const [pharmacyRes, ordersRes] = await Promise.all([
         fetch('/api/pharmacies/me'),
         fetch(`/api/pharmacies/orders?${buildOrdersQuery(1)}`),
-        fetch('/api/pharmacies/stats'),
       ]);
 
       if (pharmacyRes.status === 401) { router.push('/pharmacy/login'); return; }
 
       const pharmacyData = await pharmacyRes.json();
       const ordersData = await ordersRes.json();
-      const statsData = await statsRes.json();
       setPharmacy(pharmacyData.pharmacy);
       setOrders(ordersData.orders || []);
       setTotalOrders(ordersData.total ?? ordersData.orders?.length ?? 0);
       setCurrentPage(1);
-      setTotalStats(statsData.stats || {});
+      setStatusCounts(ordersData.status_counts || {});
     } catch {
       toast.error('Failed to load dashboard');
     } finally {
@@ -114,6 +113,7 @@ export default function PharmacyDashboard() {
       const data = await res.json();
       setOrders((prev) => [...prev, ...(data.orders || [])]);
       setCurrentPage(nextPage);
+      // status_counts stays from initial load (correct totals)
     } catch {
       toast.error('Failed to load more orders');
     } finally {
@@ -169,13 +169,24 @@ export default function PharmacyDashboard() {
 
   const filtered = statusFilter === 'all' ? orders : orders.filter((o) => o.status === statusFilter);
 
-  // Stats always reflect ALL-TIME totals, independent of the date filter
+  // Stats reflect the current date filter
   const stats = {
-    pending: totalStats['pending'] ?? 0,
-    processing: totalStats['processing'] ?? 0,
-    ready: totalStats['ready_for_delivery'] ?? 0,
-    delivered: totalStats['delivered'] ?? 0,
+    pending: statusCounts['pending'] ?? 0,
+    processing: statusCounts['processing'] ?? 0,
+    ready: statusCounts['ready_for_delivery'] ?? 0,
+    delivered: statusCounts['delivered'] ?? 0,
   };
+
+  const allStatusStats = [
+    { key: 'pending', label: 'Pending', color: 'text-yellow-600 bg-yellow-50' },
+    { key: 'processing', label: 'Processing', color: 'text-blue-600 bg-blue-50' },
+    { key: 'ready_for_delivery', label: 'Ready', color: 'text-purple-600 bg-purple-50' },
+    { key: 'assigned', label: 'Assigned', color: 'text-indigo-600 bg-indigo-50' },
+    { key: 'out_for_delivery', label: 'Out for Delivery', color: 'text-cyan-600 bg-cyan-50' },
+    { key: 'delivered', label: 'Delivered', color: 'text-green-600 bg-green-50' },
+    { key: 'delivery_failed', label: 'Failed', color: 'text-red-600 bg-red-50' },
+    { key: 'cancelled', label: 'Cancelled', color: 'text-gray-600 bg-gray-100' },
+  ];
 
   const hasMore = dateFilter === 'all' && orders.length < totalOrders;
 
@@ -232,11 +243,30 @@ export default function PharmacyDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <StatCard label="Pending" value={stats.pending} icon={<Package size={20} className="text-yellow-600" />} color="bg-yellow-50" />
           <StatCard label="Processing" value={stats.processing} icon={<Clock size={20} className="text-blue-600" />} color="bg-blue-50" />
           <StatCard label="Ready for Delivery" value={stats.ready} icon={<Truck size={20} className="text-purple-600" />} color="bg-purple-50" />
           <StatCard label="Delivered" value={stats.delivered} icon={<CheckCircle size={20} className="text-green-600" />} color="bg-green-50" />
+        </div>
+
+        {/* Order Stats Breakdown */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart2 size={16} className="text-gray-400" />
+            <span className="text-sm font-semibold text-gray-700">Order Statistics</span>
+            <span className="text-xs text-gray-400 ml-1">
+              ({dateFilter === 'all' ? 'All time' : dateFilter === 'today' ? 'Today' : dateFilter === 'yesterday' ? 'Yesterday' : dateFilter === 'last_week' ? 'Last 7 days' : customDate || 'Custom'})
+            </span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            {allStatusStats.map(({ key, label, color }) => (
+              <div key={key} className={cn('rounded-lg px-2 py-2 text-center', color.split(' ')[1])}>
+                <p className={cn('text-lg font-bold', color.split(' ')[0])}>{statusCounts[key] ?? 0}</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-tight">{label}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Date Filter */}
